@@ -1,7 +1,19 @@
--- AutoType Aimbot - Sistema de Monitoramento com Injeção de Sufixo Direto
+-- AutoTyper - Sistema de Typer
+local permitidos = {
+    [91704854174760] = true,
+}
+
+if not permitidos[game.PlaceId] then
+    return
+end
+
+repeat task.wait() until game:IsLoaded()
+task.wait(2)
+
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 local Palavras = {
@@ -16,7 +28,7 @@ local Palavras = {
     -- C
     "CABALA", "CACOFONIA", "CADENCIA", "CALIGRAFIA", "CALIPSO", "CAMAFEU", "CANONE", "CAPCIOSO",
     "CAPITULAR", "CARAVELA", "CARMIN", "CATARSE", "CAUSTICO", "CELERIDADE", "CENACULO", "CERNE",
-    "CHANCELA", "CIMERIO", "CIRCUNLOQUIO", "CLAUDICAR", "COADJUVANTE", "COESO", "COLIGACAO", "COMPLACENCIA",
+    "CIMERIO", "CIRCUNLOQUIO", "CLAUDICAR", "COADJUVANTE", "COESO", "COLIGACAO", "COMPLACENCIA",
     "CONCLAVE", "CONTUMAZ", "COROLARIO", "COSMOGONIA", "CRISALIDA", "CUNEIFORME",
     -- D
     "DACTILO", "DAIMON", "DALIA", "DEBACLE", "DECORO", "DEFERENCIA", "DELIRIO", "DEMIURGO",
@@ -93,11 +105,13 @@ local Palavras = {
     -- GL
     "GLOBO", "GLÓRIA", "GLACIAL", "GLICOSE", "GLADIADOR",
     -- PR
-    "PRAIA", "PREÇO", "PRATO", "PRÉDIO", "PRIMO",
+    "PRAIA", "PREÇO", "PRATO", "PREDIO", "PRIMO",
 	-- CO
     "COISA", "COMIDA", "CORPO", "COPO", "CORRIDA",
 	-- CA
     "CAFE", "CAMISA", "CADERNO", "CAMPO", "CANETA",
+	-- UZ
+	"UZO", "UZIFUR", "UZBEQUE", 
 
     -- === 3. CONJUNTOS DE 3 LETRAS INICIAIS
     -- BRA
@@ -115,7 +129,9 @@ local Palavras = {
     -- FRA
     "FRACA", "FRACASSO", "FRAGIL", "FRAGMENTO",
     -- GLO
-    "GLUTEN", "GLOBAL", "GLOSSARIO", "GLORIOSO",
+    "GLOBAL", "GLOSSARIO", "GLORIOSO", "GLORIA",
+    -- GLU
+    "GLUTEN", "GLUTINAR", "GLUCIDO",
     -- PRI
     "PRIMA", "PRISMA", "PRIVADO", "PRIMEIRO"
 }
@@ -127,95 +143,240 @@ local MesaDetectada = nil
 local CadeiraDona = nil
 local ConexaoLoop = nil
 
---  Em segundos
-local TempoDigitacao = 0.02  -- padrão: 20ms por tecla
-local TempoMin = 0.01
-local TempoMax = 0.10
-local TempoStep = 0.01
+local TempoDigitacao = 0.02
+
 
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "SugestorAutoType"
+Gui.Name = "AutoTyper"
 Gui.ResetOnSpawn = false
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Gui.Parent = Player:WaitForChild("PlayerGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 160)
-Frame.Position = UDim2.new(0, 10, 0, 10)
-Frame.BackgroundTransparency = 0.3
-Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Frame.BorderSizePixel = 2
-Frame.BorderColor3 = Color3.fromRGB(0, 170, 255)
+Frame.Size = UDim2.new(0, 260, 0, 260)
+Frame.Position = UDim2.new(0, 14, 0, 14)
+Frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+Frame.BorderSizePixel = 0
 Frame.Parent = Gui
 
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 12)
+FrameCorner.Parent = Frame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(0, 180, 255)
+FrameStroke.Thickness = 1.5
+FrameStroke.Transparency = 0.2
+FrameStroke.Parent = Frame
+
+local Titulo = Instance.new("Frame")
+Titulo.Size = UDim2.new(1, 0, 0, 36)
+Titulo.Position = UDim2.new(0, 0, 0, 0)
+Titulo.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+Titulo.BorderSizePixel = 0
+Titulo.ZIndex = 2
+Titulo.Parent = Frame
+
+local TituloCorner = Instance.new("UICorner")
+TituloCorner.CornerRadius = UDim.new(0, 12)
+TituloCorner.Parent = Titulo
+
+local TituloPatch = Instance.new("Frame")
+TituloPatch.Size = UDim2.new(1, 0, 0.5, 0)
+TituloPatch.Position = UDim2.new(0, 0, 0.5, 0)
+TituloPatch.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+TituloPatch.BorderSizePixel = 0
+TituloPatch.ZIndex = 2
+TituloPatch.Parent = Titulo
+
+local TituloLabel = Instance.new("TextLabel")
+TituloLabel.Size = UDim2.new(1, 0, 1, 0)
+TituloLabel.Text = "AutoTyper"
+TituloLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TituloLabel.BackgroundTransparency = 1
+TituloLabel.TextScaled = true
+TituloLabel.Font = Enum.Font.GothamBold
+TituloLabel.ZIndex = 3
+TituloLabel.Parent = Titulo
+
+local Conteudo = Instance.new("Frame")
+Conteudo.Size = UDim2.new(1, 0, 1, -36)
+Conteudo.Position = UDim2.new(0, 0, 0, 36)
+Conteudo.BackgroundTransparency = 1
+Conteudo.Parent = Frame
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+Layout.Parent = Conteudo
+
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0, 12)
+Padding.PaddingBottom = UDim.new(0, 12)
+Padding.PaddingLeft = UDim.new(0, 12)
+Padding.PaddingRight = UDim.new(0, 12)
+Padding.Parent = Conteudo
+
 local Texto = Instance.new("TextLabel")
-Texto.Size = UDim2.new(1, 0, 0.22, 0)
-Texto.Text = "Toque em uma cadeira"
-Texto.TextColor3 = Color3.fromRGB(255, 255, 255)
+Texto.Size = UDim2.new(1, 0, 0, 30)
+Texto.Text = "Inicie um desafio"
+Texto.TextColor3 = Color3.fromRGB(180, 220, 255)
 Texto.BackgroundTransparency = 1
 Texto.TextScaled = true
-Texto.Parent = Frame
+Texto.Font = Enum.Font.Gotham
+Texto.Parent = Conteudo
 
 local Botao = Instance.new("TextButton")
-Botao.Size = UDim2.new(1, 0, 0.22, 0)
-Botao.Position = UDim2.new(0, 0, 0.22, 0)
+Botao.Size = UDim2.new(1, 0, 0, 38)
 Botao.Text = "ESCREVER"
 Botao.TextColor3 = Color3.fromRGB(255, 255, 255)
-Botao.BackgroundColor3 = Color3.fromRGB(20, 120, 200)
+Botao.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
+Botao.Font = Enum.Font.GothamBold
 Botao.TextScaled = true
-Botao.Parent = Frame
+Botao.AutoButtonColor = false
+Botao.Parent = Conteudo
+
+local BotaoCorner = Instance.new("UICorner")
+BotaoCorner.CornerRadius = UDim.new(0, 8)
+BotaoCorner.Parent = Botao
+
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Size = UDim2.new(1, 0, 0, 30)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 30)
+StatusFrame.BorderSizePixel = 0
+StatusFrame.Parent = Conteudo
+
+local StatusCorner = Instance.new("UICorner")
+StatusCorner.CornerRadius = UDim.new(0, 6)
+StatusCorner.Parent = StatusFrame
 
 local TextoCadeira = Instance.new("TextLabel")
-TextoCadeira.Size = UDim2.new(1, 0, 0.2, 0)
-TextoCadeira.Position = UDim2.new(0, 0, 0.44, 0)
-TextoCadeira.Text = "Status: Aguardando..."
-TextoCadeira.TextColor3 = Color3.fromRGB(0, 255, 120)
+TextoCadeira.Size = UDim2.new(1, -8, 1, 0)
+TextoCadeira.Position = UDim2.new(0, 4, 0, 0)
+TextoCadeira.Text = "⏳  Aguardando..."
+TextoCadeira.TextColor3 = Color3.fromRGB(0, 220, 120)
 TextoCadeira.BackgroundTransparency = 1
 TextoCadeira.TextScaled = true
-TextoCadeira.Parent = Frame
+TextoCadeira.Font = Enum.Font.Gotham
+TextoCadeira.Parent = StatusFrame
 
-local LabelTempo = Instance.new("TextLabel")
-LabelTempo.Size = UDim2.new(1, 0, 0.17, 0)
-LabelTempo.Position = UDim2.new(0, 0, 0.64, 0)
-LabelTempo.Text = "Tempo: " .. math.floor(TempoDigitacao * 1000) .. "ms"
-LabelTempo.TextColor3 = Color3.fromRGB(255, 200, 0)
-LabelTempo.BackgroundTransparency = 1
-LabelTempo.TextScaled = true
-LabelTempo.Parent = Frame
+local SpeedFrame = Instance.new("Frame")
+SpeedFrame.Size = UDim2.new(1, 0, 0, 34)
+SpeedFrame.BackgroundTransparency = 1
+SpeedFrame.Parent = Conteudo
+
+local SpeedLayout = Instance.new("UIListLayout")
+SpeedLayout.FillDirection = Enum.FillDirection.Horizontal
+SpeedLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SpeedLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+SpeedLayout.Padding = UDim.new(0, 6)
+SpeedLayout.Parent = SpeedFrame
 
 local BotaoMenos = Instance.new("TextButton")
-BotaoMenos.Size = UDim2.new(0.3, 0, 0.17, 0)
-BotaoMenos.Position = UDim2.new(0, 0, 0.81, 0)
-BotaoMenos.Text = "- Lento"
+BotaoMenos.Size = UDim2.new(0, 68, 0, 30)
+BotaoMenos.Text = "▼ Lento"
 BotaoMenos.TextColor3 = Color3.fromRGB(255, 255, 255)
-BotaoMenos.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+BotaoMenos.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+BotaoMenos.Font = Enum.Font.GothamBold
 BotaoMenos.TextScaled = true
-BotaoMenos.Parent = Frame
+BotaoMenos.AutoButtonColor = false
+BotaoMenos.Parent = SpeedFrame
+
+local MenosCorner = Instance.new("UICorner")
+MenosCorner.CornerRadius = UDim.new(0, 7)
+MenosCorner.Parent = BotaoMenos
+
+local LabelTempo = Instance.new("TextLabel")
+LabelTempo.Size = UDim2.new(0, 72, 0, 30)
+LabelTempo.Text = math.floor(TempoDigitacao * 1000) .. " ms"
+LabelTempo.TextColor3 = Color3.fromRGB(255, 210, 60)
+LabelTempo.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+LabelTempo.Font = Enum.Font.GothamBold
+LabelTempo.TextScaled = true
+LabelTempo.Parent = SpeedFrame
+
+local TempoCorner = Instance.new("UICorner")
+TempoCorner.CornerRadius = UDim.new(0, 7)
+TempoCorner.Parent = LabelTempo
 
 local BotaoMais = Instance.new("TextButton")
-BotaoMais.Size = UDim2.new(0.3, 0, 0.17, 0)
-BotaoMais.Position = UDim2.new(0.7, 0, 0.81, 0)
-BotaoMais.Text = "+ Rápido"
+BotaoMais.Size = UDim2.new(0, 68, 0, 30)
+BotaoMais.Text = "▲ Rápido"
 BotaoMais.TextColor3 = Color3.fromRGB(255, 255, 255)
-BotaoMais.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+BotaoMais.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+BotaoMais.Font = Enum.Font.GothamBold
 BotaoMais.TextScaled = true
-BotaoMais.Parent = Frame
+BotaoMais.AutoButtonColor = false
+BotaoMais.Parent = SpeedFrame
 
-local function AtualizarLabelTempo()
-    LabelTempo.Text = "Tempo: " .. math.floor(TempoDigitacao * 1000) .. "ms"
+local MaisCorner = Instance.new("UICorner")
+MaisCorner.CornerRadius = UDim.new(0, 7)
+MaisCorner.Parent = BotaoMais
+
+
+local Arrastando = false
+local DragInput
+local DragStart
+local StartPos
+
+local function Atualizar(input)
+    local Delta = input.Position - DragStart
+    Frame.Position = UDim2.new(
+        StartPos.X.Scale,
+        StartPos.X.Offset + Delta.X,
+        StartPos.Y.Scale,
+        StartPos.Y.Offset + Delta.Y
+    )
 end
 
-BotaoMenos.Activated:Connect(function()
-    TempoDigitacao = math.min(TempoDigitacao + TempoStep, TempoMax)
-    TempoDigitacao = math.floor(TempoDigitacao * 100 + 0.5) / 100
-    AtualizarLabelTempo()
+Titulo.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        Arrastando = true
+        DragStart = input.Position
+        StartPos = Frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                Arrastando = false
+            end
+        end)
+    end
 end)
 
-BotaoMais.Activated:Connect(function()
-    TempoDigitacao = math.max(TempoDigitacao - TempoStep, TempoMin)
-    TempoDigitacao = math.floor(TempoDigitacao * 100 + 0.5) / 100
-    AtualizarLabelTempo()
+Titulo.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        DragInput = input
+    end
 end)
 
+UserInputService.InputChanged:Connect(function(input)
+    if input == DragInput and Arrastando then
+        Atualizar(input)
+    end
+end)
+
+
+local function AtualizarDisplayTempo()
+    LabelTempo.Text = math.floor(TempoDigitacao * 1000) .. " ms"
+end
+
+BotaoMenos.MouseButton1Click:Connect(function()
+    TempoDigitacao = math.clamp(TempoDigitacao + 0.010, 0.010, 1.000)
+    AtualizarDisplayTempo()
+end)
+
+BotaoMais.MouseButton1Click:Connect(function()
+    TempoDigitacao = math.clamp(TempoDigitacao - 0.010, 0.010, 1.000)
+    AtualizarDisplayTempo()
+end)
+
+Botao.MouseEnter:Connect(function() Botao.BackgroundColor3 = Color3.fromRGB(0, 170, 255) end)
+Botao.MouseLeave:Connect(function() Botao.BackgroundColor3 = Color3.fromRGB(0, 140, 220) end)
+BotaoMenos.MouseEnter:Connect(function() BotaoMenos.BackgroundColor3 = Color3.fromRGB(220, 70, 70) end)
+BotaoMenos.MouseLeave:Connect(function() BotaoMenos.BackgroundColor3 = Color3.fromRGB(180, 50, 50) end)
+BotaoMais.MouseEnter:Connect(function() BotaoMais.BackgroundColor3 = Color3.fromRGB(60, 200, 80) end)
+BotaoMais.MouseLeave:Connect(function() BotaoMais.BackgroundColor3 = Color3.fromRGB(40, 160, 60) end)
 
 local function EncontrarPalavra(prefixo)
     prefixo = prefixo:upper()
@@ -239,7 +400,7 @@ local function SimularTecladoCerto(palavraCompleta, prefixoExistente)
         if keyCode then
             pcall(function()
                 VirtualInputManager:SendKeyEvent(true, keyCode, false, nil)
-                task.wait(TempoDigitacao * 0.5)  -- 🆕 usa o tempo configurado
+                task.wait(TempoDigitacao * 0.5)
                 VirtualInputManager:SendKeyEvent(false, keyCode, false, nil)
             end)
         end
@@ -262,7 +423,7 @@ local function DesconectarMesa()
     PalavraAtual = nil
     LetrasDaMesa = ""
     table.clear(Usadas)
-    Texto.Text = "Toque em uma cadeira"
+    Texto.Text = "Inicie um desafio"
     TextoCadeira.Text = "Status: Livre / Saiu"
 end
 
@@ -295,13 +456,14 @@ local function IniciarMonitoramento(objetoMesa)
         local Letras = Category.Text:upper()
         if Letras ~= "" and Letras ~= " " then
             LetrasDaMesa = Letras
-            if not PalavraAtual or PalavraAtual:sub(1, #Letras) ~= Letras then
+            -- CORREÇÃO: Busca uma nova palavra se não tiver nenhuma, se a letra mudou OU se a palavra atual já foi usada!
+            if not PalavraAtual or PalavraAtual:sub(1, #Letras) ~= Letras or Usadas[PalavraAtual] then
                 local Palavra = EncontrarPalavra(Letras)
                 if Palavra then
                     PalavraAtual = Palavra
                     Texto.Text = Palavra
                 else
-                    Texto.Text = "(" .. Letras .. ") Sem Palavra"
+                    Texto.Text = "Sem palavras disponíveis!"
                     PalavraAtual = nil
                 end
             end
@@ -309,6 +471,7 @@ local function IniciarMonitoramento(objetoMesa)
             Texto.Text = "Aguardando Letras..."
             PalavraAtual = nil
             LetrasDaMesa = ""
+            table.clear(Usadas) -- Reseta as usadas quando o painel limpa entre rodadas
         end
     end)
 end
@@ -331,7 +494,6 @@ local function MonitorarBancos(objeto)
     end
 end
 
-
 for _, desc in pairs(workspace:GetDescendants()) do
     MonitorarBancos(desc)
 end
@@ -341,11 +503,13 @@ workspace.DescendantAdded:Connect(MonitorarBancos)
 Botao.Activated:Connect(function()
     if PalavraAtual and LetrasDaMesa ~= "" then
         local palavraEnviada = PalavraAtual
-        Usadas[palavraEnviada] = true
-        SimularTecladoCerto(palavraEnviada, LetrasDaMesa)
-        Texto.Text = "Digitado!"
-        PalavraAtual = nil
+        Usadas[palavraEnviada] = true -- Adiciona na lista de proibidas
+        
+        task.spawn(function()
+            SimularTecladoCerto(palavraEnviada, LetrasDaMesa)
+            -- Removeu-se o Texto.Text = "Digitado!" para a lógica do Heartbeat assumir o controle imediatamente
+        end)
     end
 end)
 
-print("[AutoType V7]")
+print("[AutoTyper V7]")
